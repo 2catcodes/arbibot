@@ -1,18 +1,12 @@
-// Wrapper for the "sonner" toaster so you can import it from @/components/ui/sonner
-import { Toaster as SonnerToaster } from "sonner";
+import { Toaster as Sonner } from "sonner";
 
-export { toast } from "sonner";
-
-export function Toaster(props: React.ComponentProps<typeof SonnerToaster>) {
-  // nice defaults; tweak as you like
+export function Toaster() {
   return (
-    <SonnerToaster
-      position="bottom-right"
+    <Sonner
+      position="top-right"
       richColors
+      theme="system"
       closeButton
-      expand={false}
-      duration={3500}
-      {...props}
     />
   );
 }
