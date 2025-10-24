@@ -1,56 +1,70 @@
-import { Market, ArbitrageOpportunity } from "@/types/market";
-import { MOCK_DATA, MATCHED_MARKETS } from "@/data/mockData";
+// Uses live public data (no keys) to compute opportunities.
+// If you deploy a proxy, pass `VITE_PROXY_BASE` in your env.
 
-export const findArbitrage = (): ArbitrageOpportunity[] => {
+import type { ArbitrageOpportunity } from "../types/market";
+import { fetchPolymarketMarkets } from "../lib/providers/polymarket";
+import { fetchKalshiMarkets } from "../lib/providers/kalshi";
+import { looksLikeSameEvent } from "../lib/match";
+
+export async function findArbitrageLive(
+  proxyBase?: string
+): Promise<ArbitrageOpportunity[]> {
+  const [pm, ks] = await Promise.all([
+    fetchPolymarketMarkets(proxyBase),
+    fetchKalshiMarkets(proxyBase),
+  ]);
+
   const opportunities: ArbitrageOpportunity[] = [];
   const TOTAL_STAKE = 100;
 
-  MATCHED_MARKETS.forEach(([pmId, kId]) => {
-    const pmMarket = MOCK_DATA.polymarket.find((m) => m.id === pmId);
-    const kMarket = MOCK_DATA.kalshi.find((m) => m.id === kId);
+  for (const p of pm) {
+    const match = ks.find(k => looksLikeSameEvent(p.question, k.title));
+    if (!match) continue;
 
-    if (!pmMarket || !kMarket) return;
+    const pmYes = Number(p.outcome_yes_price ?? 0);
+    const pmNo = Number(p.outcome_no_price ?? (pmYes ? 1 - pmYes : 0));
+    const kYes = Number(match.yes_price ?? 0);
+    const kNo = Number(match.no_price ?? (kYes ? 1 - kYes : 0));
 
-    // Case 1: Buy YES on Polymarket, NO on Kalshi
-    const costCase1 = pmMarket.outcome_yes_price + kMarket.outcome_no_price;
-    if (costCase1 < 1.0) {
-      const profitPercent = ((1 - costCase1) / costCase1) * 100;
-      const pmStake = TOTAL_STAKE * (pmMarket.outcome_yes_price / costCase1);
-      const kStake = TOTAL_STAKE * (kMarket.outcome_no_price / costCase1);
-
+    // Case 1: YES on Polymarket, NO on Kalshi
+    const cost1 = pmYes + kNo;
+    if (cost1 > 0 && cost1 < 1.0) {
+      const pmStake = (pmYes / (pmYes + kNo)) * TOTAL_STAKE;
+      const kStake = TOTAL_STAKE - pmStake;
+      const profitPercent = (1 - cost1) * 100;
       opportunities.push({
-        eventName: pmMarket.event_name,
+        eventName: p.question,
         polymarketAction: "Buy YES",
-        polymarketPrice: pmMarket.outcome_yes_price,
+        polymarketPrice: pmYes,
         kalshiAction: "Buy NO",
-        kalshiPrice: kMarket.outcome_no_price,
-        totalCost: costCase1,
+        kalshiPrice: kNo,
+        totalCost: cost1,
         profitPercent,
         polymarketStake: pmStake,
         kalshiStake: kStake,
       });
     }
 
-    // Case 2: Buy NO on Polymarket, YES on Kalshi
-    const costCase2 = pmMarket.outcome_no_price + kMarket.outcome_yes_price;
-    if (costCase2 < 1.0) {
-      const profitPercent = ((1 - costCase2) / costCase2) * 100;
-      const pmStake = TOTAL_STAKE * (pmMarket.outcome_no_price / costCase2);
-      const kStake = TOTAL_STAKE * (kMarket.outcome_yes_price / costCase2);
-
+    // Case 2: NO on Polymarket, YES on Kalshi
+    const cost2 = pmNo + kYes;
+    if (cost2 > 0 && cost2 < 1.0) {
+      const pmStake = (pmNo / (pmNo + kYes)) * TOTAL_STAKE;
+      const kStake = TOTAL_STAKE - pmStake;
+      const profitPercent = (1 - cost2) * 100;
       opportunities.push({
-        eventName: pmMarket.event_name,
+        eventName: p.question,
         polymarketAction: "Buy NO",
-        polymarketPrice: pmMarket.outcome_no_price,
+        polymarketPrice: pmNo,
         kalshiAction: "Buy YES",
-        kalshiPrice: kMarket.outcome_yes_price,
-        totalCost: costCase2,
+        kalshiPrice: kYes,
+        totalCost: cost2,
         profitPercent,
         polymarketStake: pmStake,
         kalshiStake: kStake,
       });
     }
-  });
+  }
 
-  return opportunities.sort((a, b) => b.profitPercent - a.profitPercent);
-};
+  opportunities.sort((a, b) => b.profitPercent - a.profitPercent);
+  return opportunities;
+}

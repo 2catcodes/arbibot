@@ -71,3 +71,20 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+
+
+## Live Data (Polymarket + Kalshi)
+
+This build fetches **public market data** directly from the official docs endpoints:
+
+- Polymarket Gamma / CLOB (read-only): `https://gamma-api.polymarket.com` (or `https://clob.polymarket.com`)  
+- Kalshi public market data v2 (read-only): `https://api.elections.kalshi.com/trade-api/v2`
+
+No keys are required for public read access. For CORS control or proprietary setups, deploy a Vercel proxy and set:
+
+```bash
+VITE_PROXY_BASE=/api
+```
+
+Add API routes like `/api/kalshi/markets` and `/api/polymarket/markets` that forward to the official endpoints. This keeps your infra private and lets you add per-IP rate limits or caching.

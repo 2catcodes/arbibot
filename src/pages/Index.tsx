@@ -1,123 +1,139 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArbitrageCard } from "@/components/ArbitrageCard";
-import { findArbitrage } from "@/utils/arbitrage";
+import { findArbitrageLive } from "@/utils/arbitrage";
 import { ArbitrageOpportunity } from "@/types/market";
-import { Activity, Search, AlertCircle } from "lucide-react";
+import { Activity, Search } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
   const [opportunities, setOpportunities] = useState<ArbitrageOpportunity[]>([]);
   const [isScanning, setIsScanning] = useState(false);
 
-  const handleScan = () => {
+  const handleScan = async () => {
     setIsScanning(true);
-    toast.info("Scanning markets for arbitrage opportunities...");
-    
-    setTimeout(() => {
-      const results = findArbitrage();
-      setOpportunities(results);
+    toast.info("scanning live markets…");
+    try {
+      const proxy = import.meta.env.VITE_PROXY_BASE;
+      const data = await findArbitrageLive(proxy);
+      setOpportunities(data);
+      if (!data.length) toast.message("no spreads yet", { description: "try again in a bit." });
+      else toast.success(`found ${data.length} spread${data.length > 1 ? "s" : ""}`);
+    } catch (err: any) {
+      toast.error(`scan failed: ${err?.message || "Failed to fetch"}`);
+    } finally {
       setIsScanning(false);
-      
-      if (results.length > 0) {
-        toast.success(`Found ${results.length} arbitrage opportunity${results.length > 1 ? 'ies' : ''}!`);
-      } else {
-        toast.warning("No arbitrage opportunities found at this time.");
-      }
-    }, 1500);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-primary/30 bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <Activity className="h-8 w-8 text-primary text-glow-cyan" />
-            <div>
-              <h1 className="text-3xl font-bold text-primary text-glow-cyan">
-                The Arbibot
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Prediction Market Arbitrage Finder
-              </p>
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+      {/* background layers */}
+      <div className="fixed inset-0 -z-10">
+        <div className="aurora layer-a" />
+        <div className="aurora layer-b" />
+        <div className="aurora layer-c" />
+        <div className="grain" />
+        <div className="glow-bottom" />
+        <ul className="particles">
+          {Array.from({ length: 28 }).map((_, i) => (
+            <li key={i} style={{ ["--d" as any]: `${i * 0.15}s`, ["--x" as any]: `${(i * 37) % 100}%` }} />
+          ))}
+        </ul>
+      </div>
+
+      {/* header / hero */}
+      <header className="relative">
+        <div className="container mx-auto px-4 pt-14">
+          <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
+            {/* Title only */}
+            <h1 className="text-balance bg-[radial-gradient(80%_80%_at_50%_0%,hsl(var(--primary))_0%,hsl(var(--primary)/.6)_60%,hsl(var(--primary)/.2)_100%)] bg-clip-text text-5xl font-black leading-[1.05] text-transparent drop-shadow-sm md:text-8xl">
+              The ArbiBot
+            </h1>
+
+            {/* action row */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Button
+                onClick={handleScan}
+                disabled={isScanning}
+                className="neon-cta group relative h-12 rounded-2xl px-7 text-base font-semibold"
+              >
+                <span className="ring-layers" />
+                {isScanning ? (
+                  <span className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 animate-scan" />
+                    scanning…
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    scan markets
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 md:py-12">
-        {/* Scanner Section */}
-        <div className="mb-8 text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-4 py-2">
-            <div className="h-2 w-2 animate-pulse rounded-full bg-success"></div>
-            <span className="font-mono-data text-sm text-foreground/80">
-              Markets: Polymarket × Kalshi
-            </span>
-          </div>
-
-          <Button
-            onClick={handleScan}
-            disabled={isScanning}
-            size="lg"
-            className="group relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 glow-cyan"
-          >
-            <Search className={`mr-2 h-5 w-5 ${isScanning ? 'animate-spin' : ''}`} />
-            {isScanning ? 'Scanning Markets...' : 'Scan for Opportunities'}
-          </Button>
-
-          {opportunities.length > 0 && (
-            <p className="mt-4 font-mono-data text-sm text-muted-foreground">
-              Displaying {opportunities.length} profitable arbitrage opportunity{opportunities.length > 1 ? 'ies' : ''}
-            </p>
-          )}
-        </div>
-
-        {/* Results */}
-        {opportunities.length > 0 ? (
-          <div className="grid gap-6">
-            {opportunities.map((opportunity, index) => (
-              <ArbitrageCard key={index} opportunity={opportunity} />
-            ))}
-          </div>
-        ) : (
-          <div className="flex min-h-[400px] items-center justify-center">
-            <div className="text-center">
-              <AlertCircle className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-              <p className="text-lg text-muted-foreground">
-                Click "Scan for Opportunities" to begin
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground/70">
-                The bot will analyze prediction markets and find profitable arbitrage trades
-              </p>
+      {/* results */}
+      <main className="relative">
+        <div className="container mx-auto px-4 py-10 md:py-16">
+          {opportunities.length === 0 ? (
+            <Empty />
+          ) : (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {opportunities.map((opp, i) => (
+                <div
+                  key={`${opp.eventName}-${i}`}
+                  className="animate-in fade-in slide-in-from-bottom-3 duration-700"
+                  style={{ animationDelay: `${i * 70}ms` }}
+                >
+                  <ArbitrageCard opportunity={opp} />
+                </div>
+              ))}
             </div>
-          </div>
-        )}
-
-        {/* Info Footer */}
-        <div className="mt-12 rounded-lg border border-primary/20 bg-card/30 p-6">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
-            How It Works
-          </h3>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              • The Arbibot scans Polymarket and Kalshi for matching prediction markets
-            </p>
-            <p>
-              • It identifies price discrepancies where you can profit risk-free
-            </p>
-            <p>
-              • Arbitrage exists when buying opposite outcomes on both platforms costs less than $1.00
-            </p>
-            <p>
-              • The bot calculates optimal stake allocation to maximize returns
-            </p>
-          </div>
+          )}
         </div>
       </main>
     </div>
   );
 };
+
+function Empty() {
+  return (
+    <div className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-primary/20 bg-card/60 p-8 text-center backdrop-blur">
+      <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
+        <Search className="h-5 w-5 text-primary" />
+      </div>
+      <h2 className="mb-2 text-xl font-semibold">no results yet</h2>
+      <p className="mx-auto max-w-lg text-sm text-muted-foreground">
+        tap <span className="font-medium text-foreground/90">scan markets</span> to pull fresh prices and find potential spreads.
+      </p>
+      <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Skeleton />
+        <Skeleton delay="140ms" />
+      </div>
+    </div>
+  );
+}
+
+function Skeleton({ delay = "0ms" }: { delay?: string }) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-xl border border-muted/20 bg-gradient-to-b from-background to-card p-5"
+      style={{ animationDelay: delay }}
+    >
+      <div className="mb-4 h-4 w-4/5 animate-pulse rounded bg-muted/40" />
+      <div className="mb-2 h-3 w-2/3 animate-pulse rounded bg-muted/30" />
+      <div className="mb-6 h-3 w-1/2 animate-pulse rounded bg-muted/30" />
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-24 animate-pulse rounded-full bg-muted/40" />
+        <div className="h-8 w-20 animate-pulse rounded-full bg-muted/30" />
+      </div>
+      <div className="shine-overlay" />
+    </div>
+  );
+}
 
 export default Index;
