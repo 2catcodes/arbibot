@@ -48,7 +48,7 @@ const Index = () => {
           <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
             {/* Title only */}
             <h1 className="text-balance bg-[radial-gradient(80%_80%_at_50%_0%,hsl(var(--primary))_0%,hsl(var(--primary)/.6)_60%,hsl(var(--primary)/.2)_100%)] bg-clip-text text-5xl font-black leading-[1.05] text-transparent drop-shadow-sm md:text-8xl">
-              The ArbiBot
+              ArbFarm
             </h1>
 
             {/* action row */}
@@ -67,7 +67,7 @@ const Index = () => {
                 ) : (
                   <span className="flex items-center gap-2">
                     <Search className="h-4 w-4" />
-                    scan markets
+                    Scan
                   </span>
                 )}
               </Button>
